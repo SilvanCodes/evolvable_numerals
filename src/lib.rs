@@ -1,7 +1,8 @@
 use std::ops::Range;
 
 use bitvec::vec::BitVec;
-use rand::Rng;
+use fastrand::Rng;
+use serde::{Deserialize, Serialize};
 
 mod f64;
 
@@ -18,33 +19,36 @@ pub use crate::f64::EvolvableF64;
 /// Further in makes thw weights space discrete with adaptable resolution reducing the search space over weights significantly.
 ///
 /// [0]: https://www.semanticscholar.org/paper/The-Proportional-Genetic-Algorithm-Wu-Garibay/856fb5784da01a72c01ee8ba7ce133c81ffdded5
-struct BinaryPGA2(BitVec);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BinaryPGA2(BitVec, #[serde(skip, default = "fastrand::Rng::new")] Rng);
 
 impl BinaryPGA2 {
     /// Create a new instance of BinaryPGA2 with one bit initial resolution.
     pub fn new() -> Self {
         let mut data = BitVec::EMPTY;
+        let rng = fastrand::Rng::new();
 
-        data.push(rand::thread_rng().gen());
+        data.push(rng.bool());
 
-        Self(data)
+        Self(data, rng)
     }
 
     /// Create a new instance of BinaryPGA2 with one bit initial resolution.
     pub fn with_resolution(resolution: usize) -> Self {
         let mut data = BitVec::with_capacity(resolution);
-        let mut rng = rand::thread_rng();
+        let rng = fastrand::Rng::new();
 
         for _ in 0..resolution {
-            data.push(rng.gen());
+            data.push(rng.bool());
         }
 
-        Self(data)
+        Self(data, rng)
     }
 
     /// Adds a random bit to the underlying BitVec thereby increasing the resolution.
     fn increase_resolution(&mut self) {
-        self.0.push(rand::thread_rng().gen())
+        self.0.push(self.1.bool())
     }
 
     /// Removes a bit from the underlying BitVec by popping a bit.
@@ -57,9 +61,9 @@ impl BinaryPGA2 {
     /// Flips every bit in the underlying BitVec with given `mutation_rate`.
     ///
     /// `mutation_rate` needs to be in the range `0.0..=1.0`.
-    fn mutate(&mut self, mutation_rate: f64, rng: &mut impl Rng) {
+    fn mutate(&mut self, mutation_rate: f64) {
         for bit in &mut self.0 {
-            if rng.gen_bool(mutation_rate) {
+            if self.1.f64() < mutation_rate {
                 let current = bit.clone();
                 bit.commit(!current);
             }
@@ -78,6 +82,23 @@ impl BinaryPGA2 {
     /// For sufficiently many bits the mean of values over the course of mutating the instance will be the center of the range.
     pub fn f32(&self, range: &Range<f32>) -> f32 {
         (self.0.count_ones() as f32 / self.0.len() as f32) * (range.end - range.start) + range.start
+    }
+}
+
+pub trait EvolvableNumeral {
+    fn representation(&mut self) -> &mut BinaryPGA2;
+
+    fn mutate_value(&mut self, mutation_rate: f64) {
+        self.representation().mutate(mutation_rate)
+    }
+
+    fn mutate_resolution(&mut self, mutation_rate: f64) {
+        if self.representation().1.f64() < mutation_rate {
+            self.representation().increase_resolution()
+        }
+        if self.representation().1.f64() < mutation_rate {
+            self.representation().decrease_resolution()
+        }
     }
 }
 
@@ -132,7 +153,7 @@ mod tests {
 
         let initial_state = pga2.0.clone();
 
-        pga2.mutate(1.0, &mut rand::thread_rng());
+        pga2.mutate(1.0);
 
         assert_eq!((initial_state & pga2.0).count_ones(), 0);
     }

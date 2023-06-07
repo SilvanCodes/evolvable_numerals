@@ -1,10 +1,11 @@
 [package]
-name = "evolvable_numeral"
+name = "evolvable_numerals"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitvec = "1.0.1"
-rand = "0.8.5"
+bitvec = { version = "1.0.1", features = ["serde"]}
+fastrand = "1.9.0"
+serde = { version = "1.0.163", features = ["derive"]}

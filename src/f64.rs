@@ -1,25 +1,6 @@
 use std::ops::Range;
 
-use rand::Rng;
-
-use crate::BinaryPGA2;
-
-trait EvolvableNumeral {
-    fn representation(&mut self) -> &mut BinaryPGA2;
-
-    fn mutate_value(&mut self, mutation_rate: f64, rng: &mut impl Rng) {
-        self.representation().mutate(mutation_rate, rng)
-    }
-
-    fn mutate_resolution(&mut self, mutation_rate: f64, rng: &mut impl Rng) {
-        if rng.gen_bool(mutation_rate) {
-            self.representation().increase_resolution()
-        }
-        if rng.gen_bool(mutation_rate) {
-            self.representation().decrease_resolution()
-        }
-    }
-}
+use crate::{BinaryPGA2, EvolvableNumeral};
 
 /// An evolvable f64 on a custom range.
 pub struct EvolvableF64 {
